@@ -1,32 +1,28 @@
-from flask import Flask, render_template, request, jsonify
-import os
-from local_detector.detector import process_video
+from flask import Flask, request, jsonify, render_template
+from datetime import datetime
 
 app = Flask(__name__)
-UPLOAD_FOLDER = "static/uploads"
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+alerts = []
 
 @app.route("/")
 def home():
-    return render_template("index.html")
+    return render_template("index.html", alerts=alerts)
 
-@app.route("/upload", methods=["POST"])
-def upload():
-    if "video" not in request.files:
-        return jsonify({"error": "No file uploaded"})
+@app.route("/alert", methods=["POST"])
+def alert():
+    data = request.json
 
-    file = request.files["video"]
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
-    file.save(filepath)
-
-    output_file = process_video(filepath)
-
-    return jsonify({
-        "message": "Detection complete",
-        "output_video": output_file
+    alerts.insert(0, {
+        "object": data["object"],
+        "confidence": round(float(data["confidence"]), 2),
+        "time": datetime.now().strftime("%H:%M:%S")
     })
+
+    return jsonify({"status": "success"})
+
+@app.route("/api/alerts")
+def get_alerts():
+    return jsonify(alerts)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
